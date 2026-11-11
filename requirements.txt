@@ -1,2 +1,9 @@
-numpy
 torch
+torchaudio
+transformers
+scikit-learn
+pandas
+numpy
+soundfile
+matplotlib
+tensorboard
