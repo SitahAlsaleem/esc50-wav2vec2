@@ -18,19 +18,25 @@ import torch.nn as nn
 from sklearn.metrics import f1_score
 from torch.utils.tensorboard import SummaryWriter
 
+from data.cached import CachedFeatures
 from data.esc50 import NUM_CLASSES, make_datasets, make_loaders
 from models.mel_cnn import MelCNN
+from models.wav2vec_heads import AttentionHead, LinearHead
 from utils.seed import set_seed
 
 
 def build_model(name: str) -> nn.Module:
     if name == "mel_cnn":
         return MelCNN(num_classes=NUM_CLASSES)
+    if name == "w2v_linear":
+        return LinearHead(num_classes=NUM_CLASSES)
+    if name == "w2v_attn":
+        return AttentionHead(num_classes=NUM_CLASSES)
     raise ValueError(f"Unknown model: {name}")
 
 
-def feature_type(name: str) -> str:
-    return {"mel_cnn": "mel"}[name]
+def is_w2v(name: str) -> bool:
+    return name.startswith("w2v")
 
 
 def run_epoch(model, loader, criterion, device, optimizer=None):
@@ -59,7 +65,10 @@ def run_epoch(model, loader, criterion, device, optimizer=None):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--model", default="mel_cnn")
+    p.add_argument("--model", default="mel_cnn",
+                   choices=["mel_cnn", "w2v_linear", "w2v_attn"])
+    p.add_argument("--layer", type=int, default=12, help="cached Wav2Vec layer")
+    p.add_argument("--cache_dir", default="cache")
     p.add_argument("--root", default="ESC-50")
     p.add_argument("--epochs", type=int, default=80)
     p.add_argument("--batch_size", type=int, default=32)
@@ -71,13 +80,24 @@ def main():
 
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    tag = f"{args.model}_seed{args.seed}"
+    tag = (f"{args.model}_L{args.layer}_seed{args.seed}" if is_w2v(args.model)
+           else f"{args.model}_seed{args.seed}")
     for d in ("runs", "checkpoints", "results"):
         Path(d).mkdir(exist_ok=True)
 
-    train_ds, val_ds, test_ds = make_datasets(args.root, feature=feature_type(args.model))
+    if is_w2v(args.model):
+        cache = Path(args.cache_dir)
+        train_ds, val_ds, test_ds = (
+            CachedFeatures(cache / f"w2v_L{args.layer}_{s}.pt")
+            for s in ("train", "val", "test")
+        )
+        workers = 0
+    else:
+        train_ds, val_ds, test_ds = make_datasets(args.root, feature="mel")
+        workers = 2
     train_dl, val_dl, test_dl = make_loaders(
-        train_ds, val_ds, test_ds, batch_size=args.batch_size, seed=args.seed
+        train_ds, val_ds, test_ds, batch_size=args.batch_size, seed=args.seed,
+        num_workers=workers,
     )
 
     model = build_model(args.model).to(device)
@@ -119,7 +139,8 @@ def main():
     te_loss, te_acc, preds, labels = run_epoch(model, test_dl, criterion, device)
     te_f1 = f1_score(labels, preds, average="macro")
     results = {
-        "model": args.model, "seed": args.seed, "trainable_params": n_params,
+        "model": args.model, "layer": args.layer if is_w2v(args.model) else None,
+        "seed": args.seed, "trainable_params": n_params,
         "best_epoch": best_epoch, "best_val_acc": best_val_acc,
         "test_acc": te_acc, "test_macro_f1": te_f1,
         "train_minutes": round((time.time() - start) / 60, 2),
