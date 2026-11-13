@@ -1,0 +1,11 @@
+{
+  "model": "mel_cnn",
+  "layer": null,
+  "seed": 42,
+  "trainable_params": 1185492,
+  "best_epoch": 45,
+  "best_val_acc": 0.815,
+  "test_acc": 0.7525,
+  "test_macro_f1": 0.740833849501032,
+  "train_minutes": 5.31
+}

@@ -1,0 +1,11 @@
+{
+  "model": "w2v_linear",
+  "layer": 12,
+  "seed": 42,
+  "trainable_params": 39986,
+  "best_epoch": 22,
+  "best_val_acc": 0.485,
+  "test_acc": 0.435,
+  "test_macro_f1": 0.4221729433030887,
+  "train_minutes": 0.5
+}

@@ -1,0 +1,11 @@
+{
+  "model": "w2v_attn",
+  "layer": 12,
+  "seed": 42,
+  "trainable_params": 237107,
+  "best_epoch": 15,
+  "best_val_acc": 0.4625,
+  "test_acc": 0.3825,
+  "test_macro_f1": 0.3741067813447676,
+  "train_minutes": 0.48
+}
