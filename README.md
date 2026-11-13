@@ -1,32 +1,30 @@
-# ESC-50 Sound Classification
+# Environmental Sound Classification on ESC-50 with Wav2Vec 2.0 (Track 3)
 
-Starter project for the ESC-50 and Wav2Vec 2.0 experiments. Put model implementations in `models/` and local dataset files in `data/`. Git tracks the directory placeholder and ignores the dataset, checkpoints, and results. The training and evaluation scripts currently check setup and seeding. Model training and metrics are pending.
+Compares three models on the same split (official folds: train 1-3, val 4, test 5):
 
-## Colab
+| # | Model | Idea |
+|---|-------|------|
+| 1 | 2D-CNN on log-Mel spectrograms | baseline, no pre-training |
+| 2 | Frozen Wav2Vec 2.0 + linear head | value of pre-training |
+| 3 | Frozen Wav2Vec 2.0 + temporal attention head | value of attention |
 
-1. Upload `ESC50_Colab.ipynb` via **File → Upload notebook**.
-2. Select **Runtime → Change runtime type → T4 GPU → Save**.
-3. Run the GPU check. Enter the repository's HTTPS clone URL and run the setup cells. For a private repository, use a read-only GitHub token stored under `GITHUB_TOKEN` in Colab Secrets, and grant the notebook access to the secret. Give each collaborator their own access.
-
-## GitHub
-
-Create an empty private repository and run these commands from the extracted project directory in an authenticated terminal. Replace `OWNER` and `REPO` with your repository details.
-
-```bash
-git init -b main
-git add .
-git commit -m "Set up ESC-50 Colab project"
-git remote add origin https://github.com/OWNER/REPO.git
-git push -u origin main
+## Run in Google Colab (GPU: Runtime > Change runtime type > T4)
 ```
-
-Invite your teammate through the repository's access settings. Each teammate can create a branch for their changes and open a pull request.
-
-## Setup check
-
-```bash
-python -m pip install -r requirements.txt
-bash run.sh 42
+!git clone https://github.com/SitahAlsaleem/esc50-wav2vec2.git
+%cd esc50-wav2vec2
+!bash run.sh
 ```
+Or step by step: `check_data.py` -> `train.py` -> `cache_features.py` -> `evaluate.py`.
+Demo: open `esc50_demo.ipynb` after training.
 
-The default seed is 42. The launcher sets Python's hash seed before startup. The seed helper sets the Python, NumPy, and PyTorch random generators and configures cuDNN to prefer deterministic behavior. Results can still vary across hardware, library versions, or operations without a deterministic implementation.
+## Structure
+`data/` datasets and cached features, `models/` Mel-CNN and Wav2Vec heads, `utils/` seeds,
+`train.py`, `evaluate.py`, `cache_features.py`, `run.sh`, `requirements.txt`.
+Seeds are fixed (42); logs go to TensorBoard (`runs/`); results to `results/`.
+
+## Results (seed 42, test fold 5)
+| Model | Test accuracy | Macro F1 |
+|-------|---------------|----------|
+| 1. Mel-CNN | 0.7525 | 0.741 |
+| 2. Wav2Vec (L12) + linear | 0.4350 | 0.422 |
+| 3. Wav2Vec (L12) + attention | 0.3825 | 0.374 |
