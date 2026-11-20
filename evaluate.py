@@ -40,11 +40,13 @@ def get_probs(model, loader, device):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--model", required=True, choices=["mel_cnn", "w2v_linear", "w2v_attn"])
+    p.add_argument("--model", required=True, choices=["mel_cnn", "w2v_linear", "w2v_uniform", "w2v_attn"])
     p.add_argument("--root", default="ESC-50")
     p.add_argument("--layer", type=int, default=12)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--cache_dir", default="cache")
+    p.add_argument("--ckpt", default=None, help="checkpoint path (default: checkpoints/<tag>.pt)")
+    p.add_argument("--out_tag", default=None, help="name used for the output files")
     args = p.parse_args()
 
     set_seed(args.seed)
@@ -58,8 +60,10 @@ def main():
         ds = ESC50Dataset(args.root, TEST_FOLDS, feature="mel", augment=False)
     loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
+    out_tag = args.out_tag or tag
     model = build_model(args.model).to(device)
-    model.load_state_dict(torch.load(Path("checkpoints") / f"{tag}.pt", map_location=device))
+    ckpt = Path(args.ckpt) if args.ckpt else Path("checkpoints") / f"{tag}.pt"
+    model.load_state_dict(torch.load(ckpt, map_location=device))
 
     probs, labels = get_probs(model, loader, device)
     preds = probs.argmax(axis=1)
@@ -75,7 +79,7 @@ def main():
     per_class_acc = cm.diagonal() / cm.sum(axis=1)
 
     results = {
-        "model": args.model, "tag": tag, "n_test": int(len(labels)),
+        "model": args.model, "tag": out_tag, "n_test": int(len(labels)),
         "accuracy": float(accuracy_score(labels, preds)),
         "macro_f1": float(f1_score(labels, preds, average="macro")),
         "weighted_f1": float(f1_score(labels, preds, average="weighted")),
@@ -84,7 +88,16 @@ def main():
         "roc_auc_macro_ovr": auc,
     }
     Path("results").mkdir(exist_ok=True)
-    Path("results", f"eval_{tag}.json").write_text(json.dumps(results, indent=2))
+    off = cm.copy()
+    np.fill_diagonal(off, 0)
+    order = np.argsort(off, axis=None)[::-1][:5]
+    results["top_confusions"] = [
+        {"true": class_names[i], "predicted": class_names[j], "count": int(off[i, j])}
+        for i, j in zip(*np.unravel_index(order, off.shape)) if off[i, j] > 0
+    ]
+    pd.DataFrame({"class": class_names, "accuracy": per_class_acc}).to_csv(
+        Path("results") / f"perclass_{out_tag}.csv", index=False)
+    Path("results", f"eval_{out_tag}.json").write_text(json.dumps(results, indent=2))
 
     fig, ax = plt.subplots(figsize=(14, 12))
     im = ax.imshow(cm, cmap="Blues")
@@ -95,12 +108,14 @@ def main():
     ax.set_title(f"Confusion matrix (test fold 5): {tag}")
     fig.colorbar(im, ax=ax, fraction=0.046)
     fig.tight_layout()
-    fig.savefig(Path("results") / f"cm_{tag}.png", dpi=150)
+    fig.savefig(Path("results") / f"cm_{out_tag}.png", dpi=150)
 
     print(json.dumps(results, indent=2))
     order = np.argsort(per_class_acc)
     print("\nHardest classes:", ", ".join(f"{class_names[i]} ({per_class_acc[i]:.0%})" for i in order[:5]))
     print("Easiest classes:", ", ".join(f"{class_names[i]} ({per_class_acc[i]:.0%})" for i in order[::-1][:5]))
+    print("Top confusions (true -> predicted):", "; ".join(
+        f"{c['true']} -> {c['predicted']} ({c['count']})" for c in results["top_confusions"]))
 
 
 if __name__ == "__main__":
