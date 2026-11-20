@@ -15,23 +15,25 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 from torch.utils.tensorboard import SummaryWriter
 
 from data.cached import CachedFeatures
 from data.esc50 import NUM_CLASSES, make_datasets, make_loaders
 from models.mel_cnn import MelCNN
-from models.wav2vec_heads import AttentionHead, LinearHead
+from models.wav2vec_heads import AttentionHead, LinearHead, UniformHead
 from utils.seed import set_seed
 
 
-def build_model(name: str) -> nn.Module:
+def build_model(name: str, dropout: float = 0.3) -> nn.Module:
     if name == "mel_cnn":
         return MelCNN(num_classes=NUM_CLASSES)
     if name == "w2v_linear":
-        return LinearHead(num_classes=NUM_CLASSES)
+        return LinearHead(num_classes=NUM_CLASSES, dropout=dropout)
+    if name == "w2v_uniform":
+        return UniformHead(num_classes=NUM_CLASSES, dropout=dropout)
     if name == "w2v_attn":
-        return AttentionHead(num_classes=NUM_CLASSES)
+        return AttentionHead(num_classes=NUM_CLASSES, dropout=dropout)
     raise ValueError(f"Unknown model: {name}")
 
 
@@ -66,7 +68,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", default="mel_cnn",
-                   choices=["mel_cnn", "w2v_linear", "w2v_attn"])
+                   choices=["mel_cnn", "w2v_linear", "w2v_uniform", "w2v_attn"])
     p.add_argument("--layer", type=int, default=12, help="cached Wav2Vec layer")
     p.add_argument("--cache_dir", default="cache")
     p.add_argument("--root", default="ESC-50")
@@ -76,14 +78,21 @@ def main():
     p.add_argument("--weight_decay", type=float, default=1e-2)
     p.add_argument("--patience", type=int, default=15)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--dropout", type=float, default=0.3, help="head dropout (w2v models)")
+    p.add_argument("--no_augment", action="store_true", help="disable CNN augmentation (ablation)")
+    p.add_argument("--run_name", default=None,
+                   help="if set, outputs go to results/exp/<run_name>.json and checkpoints/<run_name>.pt "
+                        "(default: legacy results/<tag>.json)")
     args = p.parse_args()
 
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tag = (f"{args.model}_L{args.layer}_seed{args.seed}" if is_w2v(args.model)
            else f"{args.model}_seed{args.seed}")
-    for d in ("runs", "checkpoints", "results"):
-        Path(d).mkdir(exist_ok=True)
+    run_name = args.run_name or tag
+    res_dir = Path("results", "exp") if args.run_name else Path("results")
+    for d in ("runs", "checkpoints", res_dir, Path("results", "history")):
+        Path(d).mkdir(parents=True, exist_ok=True)
 
     if is_w2v(args.model):
         cache = Path(args.cache_dir)
@@ -93,14 +102,14 @@ def main():
         )
         workers = 0
     else:
-        train_ds, val_ds, test_ds = make_datasets(args.root, feature="mel")
+        train_ds, val_ds, test_ds = make_datasets(args.root, feature="mel", augment=not args.no_augment)
         workers = 2
     train_dl, val_dl, test_dl = make_loaders(
         train_ds, val_ds, test_ds, batch_size=args.batch_size, seed=args.seed,
         num_workers=workers,
     )
 
-    model = build_model(args.model).to(device)
+    model = build_model(args.model, args.dropout).to(device)
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Device: {device} | model: {args.model} | trainable params: {n_params:,}")
 
@@ -108,10 +117,11 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr,
                                   weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    writer = SummaryWriter(f"runs/{tag}")
+    writer = SummaryWriter(f"runs/{run_name}")
 
     best_val_acc, best_epoch, bad_epochs = 0.0, 0, 0
-    ckpt_path = Path("checkpoints") / f"{tag}.pt"
+    ckpt_path = Path("checkpoints") / f"{run_name}.pt"
+    history = []
     start = time.time()
 
     for epoch in range(1, args.epochs + 1):
@@ -122,6 +132,9 @@ def main():
         writer.add_scalars("loss", {"train": tr_loss, "val": va_loss}, epoch)
         writer.add_scalars("accuracy", {"train": tr_acc, "val": va_acc}, epoch)
         writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch)
+        history.append({"epoch": epoch, "train_loss": tr_loss, "train_acc": tr_acc,
+                        "val_loss": va_loss, "val_acc": va_acc,
+                        "lr": optimizer.param_groups[0]["lr"]})
         print(f"epoch {epoch:3d} | train loss {tr_loss:.3f} acc {tr_acc:.3f} | "
               f"val loss {va_loss:.3f} acc {va_acc:.3f}")
 
@@ -138,14 +151,24 @@ def main():
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
     te_loss, te_acc, preds, labels = run_epoch(model, test_dl, criterion, device)
     te_f1 = f1_score(labels, preds, average="macro")
+    best = history[best_epoch - 1]
     results = {
+        "run_name": run_name, "dropout": args.dropout if is_w2v(args.model) else None,
+        "augment": (not args.no_augment) if args.model == "mel_cnn" else None,
+        "lr": args.lr, "weight_decay": args.weight_decay,
+        "epochs_run": len(history), "best_val_loss": best["val_loss"],
+        "train_acc_at_best": best["train_acc"], "test_loss": te_loss,
+        "test_macro_precision": precision_score(labels, preds, average="macro", zero_division=0),
+        "test_macro_recall": recall_score(labels, preds, average="macro", zero_division=0),
+        "test_weighted_f1": f1_score(labels, preds, average="weighted"),
         "model": args.model, "layer": args.layer if is_w2v(args.model) else None,
         "seed": args.seed, "trainable_params": n_params,
         "best_epoch": best_epoch, "best_val_acc": best_val_acc,
         "test_acc": te_acc, "test_macro_f1": te_f1,
         "train_minutes": round((time.time() - start) / 60, 2),
     }
-    Path("results", f"{tag}.json").write_text(json.dumps(results, indent=2))
+    (res_dir / f"{run_name}.json").write_text(json.dumps(results, indent=2))
+    Path("results", "history", f"{run_name}.json").write_text(json.dumps(history))
     writer.add_hparams({"model": args.model, "lr": args.lr, "seed": args.seed},
                        {"hparam/test_acc": te_acc, "hparam/test_macro_f1": te_f1})
     writer.close()
