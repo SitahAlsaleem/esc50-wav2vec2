@@ -42,3 +42,29 @@ class AttentionHead(nn.Module):
         pooled = (attn.unsqueeze(-1) * x).sum(dim=1)                 # (B, dim)
         logits = self.fc(self.drop(pooled))
         return (logits, attn) if return_attention else logits
+
+
+class UniformHead(nn.Module):
+    """Ablation control for Model 3.
+
+    Identical to AttentionHead (per-frame LayerNorm -> weighted sum over time ->
+    dropout -> linear) except the scoring network is removed and every frame gets
+    the same weight 1/T. Comparing it with AttentionHead isolates the learned
+    attention weights; comparing it with LinearHead isolates the order of
+    normalisation and pooling.
+    """
+
+    def __init__(self, dim: int = 768, num_classes: int = 50, dropout: float = 0.3):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.drop = nn.Dropout(dropout)
+        self.fc = nn.Linear(dim, num_classes)
+
+    def forward(self, x, return_attention: bool = False):
+        x = self.norm(x)
+        pooled = x.mean(dim=1)
+        logits = self.fc(self.drop(pooled))
+        if return_attention:
+            attn = torch.full(x.shape[:2], 1.0 / x.size(1), device=x.device)
+            return logits, attn
+        return logits
