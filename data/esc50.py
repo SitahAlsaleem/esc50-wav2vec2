@@ -91,9 +91,9 @@ class ESC50Dataset(Dataset):
         return x, self.labels[idx]
 
 
-def make_datasets(root, feature: str = "wave", n_mels: int = 64):
+def make_datasets(root, feature: str = "wave", n_mels: int = 64, augment: bool = True):
     """Return (train, val, test) datasets and verify the folds do not overlap."""
-    train = ESC50Dataset(root, TRAIN_FOLDS, feature, augment=True, n_mels=n_mels)
+    train = ESC50Dataset(root, TRAIN_FOLDS, feature, augment=augment, n_mels=n_mels)
     val = ESC50Dataset(root, VAL_FOLDS, feature, augment=False, n_mels=n_mels)
     test = ESC50Dataset(root, TEST_FOLDS, feature, augment=False, n_mels=n_mels)
 
