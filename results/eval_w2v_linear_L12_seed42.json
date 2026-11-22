@@ -1,0 +1,38 @@
+{
+  "model": "w2v_linear",
+  "tag": "w2v_linear_L12_seed42",
+  "n_test": 400,
+  "accuracy": 0.435,
+  "macro_f1": 0.4221729433030887,
+  "weighted_f1": 0.4221729433030887,
+  "macro_precision": 0.4546467356173238,
+  "macro_recall": 0.435,
+  "roc_auc_macro_ovr": 0.9142920918367348,
+  "top_confusions": [
+    {
+      "true": "sheep",
+      "predicted": "hen",
+      "count": 4
+    },
+    {
+      "true": "wind",
+      "predicted": "train",
+      "count": 4
+    },
+    {
+      "true": "thunderstorm",
+      "predicted": "crickets",
+      "count": 3
+    },
+    {
+      "true": "sea_waves",
+      "predicted": "siren",
+      "count": 3
+    },
+    {
+      "true": "frog",
+      "predicted": "crickets",
+      "count": 2
+    }
+  ]
+}

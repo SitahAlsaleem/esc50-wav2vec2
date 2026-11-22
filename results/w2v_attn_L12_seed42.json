@@ -1,4 +1,16 @@
 {
+  "run_name": "w2v_attn_L12_seed42",
+  "dropout": 0.3,
+  "augment": null,
+  "lr": 0.001,
+  "weight_decay": 0.01,
+  "epochs_run": 30,
+  "best_val_loss": 2.4404588603973387,
+  "train_acc_at_best": 0.8658333333333333,
+  "test_loss": 2.719187469482422,
+  "test_macro_precision": 0.4021131091131091,
+  "test_macro_recall": 0.3825,
+  "test_weighted_f1": 0.3741067813447676,
   "model": "w2v_attn",
   "layer": 12,
   "seed": 42,
@@ -7,5 +19,5 @@
   "best_val_acc": 0.4625,
   "test_acc": 0.3825,
   "test_macro_f1": 0.3741067813447676,
-  "train_minutes": 0.48
+  "train_minutes": 0.52
 }

@@ -1,4 +1,16 @@
 {
+  "run_name": "mel_cnn_seed42",
+  "dropout": null,
+  "augment": true,
+  "lr": 0.001,
+  "weight_decay": 0.01,
+  "epochs_run": 60,
+  "best_val_loss": 1.4599673271179199,
+  "train_acc_at_best": 0.9966666666666667,
+  "test_loss": 1.5377385807037354,
+  "test_macro_precision": 0.7756388611388612,
+  "test_macro_recall": 0.7525,
+  "test_weighted_f1": 0.740833849501032,
   "model": "mel_cnn",
   "layer": null,
   "seed": 42,
@@ -7,5 +19,5 @@
   "best_val_acc": 0.815,
   "test_acc": 0.7525,
   "test_macro_f1": 0.740833849501032,
-  "train_minutes": 5.31
+  "train_minutes": 6.19
 }

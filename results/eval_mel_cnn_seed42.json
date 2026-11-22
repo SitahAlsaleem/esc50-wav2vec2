@@ -1,0 +1,38 @@
+{
+  "model": "mel_cnn",
+  "tag": "mel_cnn_seed42",
+  "n_test": 400,
+  "accuracy": 0.7525,
+  "macro_f1": 0.740833849501032,
+  "weighted_f1": 0.740833849501032,
+  "macro_precision": 0.7756388611388612,
+  "macro_recall": 0.7525,
+  "roc_auc_macro_ovr": 0.990172193877551,
+  "top_confusions": [
+    {
+      "true": "pig",
+      "predicted": "coughing",
+      "count": 3
+    },
+    {
+      "true": "airplane",
+      "predicted": "thunderstorm",
+      "count": 3
+    },
+    {
+      "true": "frog",
+      "predicted": "clock_alarm",
+      "count": 2
+    },
+    {
+      "true": "airplane",
+      "predicted": "wind",
+      "count": 2
+    },
+    {
+      "true": "clapping",
+      "predicted": "keyboard_typing",
+      "count": 2
+    }
+  ]
+}

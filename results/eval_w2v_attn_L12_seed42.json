@@ -1,0 +1,38 @@
+{
+  "model": "w2v_attn",
+  "tag": "w2v_attn_L12_seed42",
+  "n_test": 400,
+  "accuracy": 0.3825,
+  "macro_f1": 0.3741067813447676,
+  "weighted_f1": 0.3741067813447676,
+  "macro_precision": 0.4021131091131091,
+  "macro_recall": 0.3825,
+  "roc_auc_macro_ovr": 0.9021875,
+  "top_confusions": [
+    {
+      "true": "fireworks",
+      "predicted": "chirping_birds",
+      "count": 4
+    },
+    {
+      "true": "sneezing",
+      "predicted": "coughing",
+      "count": 4
+    },
+    {
+      "true": "hen",
+      "predicted": "cat",
+      "count": 4
+    },
+    {
+      "true": "engine",
+      "predicted": "helicopter",
+      "count": 4
+    },
+    {
+      "true": "airplane",
+      "predicted": "helicopter",
+      "count": 3
+    }
+  ]
+}

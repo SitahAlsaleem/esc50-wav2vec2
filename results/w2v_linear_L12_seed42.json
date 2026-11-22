@@ -1,4 +1,16 @@
 {
+  "run_name": "w2v_linear_L12_seed42",
+  "dropout": 0.3,
+  "augment": null,
+  "lr": 0.001,
+  "weight_decay": 0.01,
+  "epochs_run": 37,
+  "best_val_loss": 2.3886205101013185,
+  "train_acc_at_best": 0.8358333333333333,
+  "test_loss": 2.592767343521118,
+  "test_macro_precision": 0.4546467356173238,
+  "test_macro_recall": 0.435,
+  "test_weighted_f1": 0.4221729433030887,
   "model": "w2v_linear",
   "layer": 12,
   "seed": 42,
@@ -7,5 +19,5 @@
   "best_val_acc": 0.485,
   "test_acc": 0.435,
   "test_macro_f1": 0.4221729433030887,
-  "train_minutes": 0.5
+  "train_minutes": 0.56
 }
