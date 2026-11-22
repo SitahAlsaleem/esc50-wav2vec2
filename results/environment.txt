@@ -1,0 +1,6 @@
+date: 2026-11-21T23:54:42Z
+commit: 3f3c64936af1a005ef7f36e8cb1e812036ff6139
+Python 3.13.16
+torch 2.14.1+cu130 | cuda 13.0 | gpu Tesla T4
+torchaudio 2.11.0+cu130 | transformers 5.22.1
+scikit-learn 1.6.1 | numpy 2.4.6
